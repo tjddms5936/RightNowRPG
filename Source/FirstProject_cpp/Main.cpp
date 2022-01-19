@@ -48,8 +48,17 @@ AMain::AMain()
 	GetCharacterMovement()->JumpZVelocity = 650.f; // Jump 높이 
 	GetCharacterMovement()->AirControl = 0.2f; // Character can moving in the air 
 
+	// Default Player Stats
+	MaxHealth = 100.f;
+	Health = 65.f;
+	MaxStamina = 350.f;
+	Stamina = 120.f;
+	Coins = 0;
 
-
+	RunningSpeed = 650.f;
+	SprintingSpeed = 950.f;
+	
+	bShiftKeyDown = false;
 }
 
 // Called when the game starts or when spawned
@@ -78,6 +87,10 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	// ACharacter를 이미 상속했고 그 안에는 Jump가 구현되어 있음.
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
+
+	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AMain::ShiftKeyDown);
+	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AMain::ShiftKeyUp);
+
 
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMain::MoveForward);
@@ -120,4 +133,39 @@ void AMain::TurnAtRate(float Rate) {
 
 void AMain::LookUpAtRate(float Rate) {
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
+}
+
+void AMain::DecrementHealth(float Amount) {
+	Health -= Amount;
+	if (Health - Amount <= 0.f) {
+		Die();
+	}
+}
+
+void AMain::Die() {
+
+}
+
+void AMain::IncrementCoins(int32 Amount) {
+	this->Coins += Amount;
+}
+
+void AMain::SetMovementStatus(EMovementStatus Status) {
+	MovementStatus = Status;
+	if (MovementStatus == EMovementStatus::EMS_Sprinting) {
+		GetCharacterMovement()->MaxWalkSpeed = SprintingSpeed;
+	}
+	else {
+		GetCharacterMovement()->MaxWalkSpeed = RunningSpeed;
+	}
+}
+
+void AMain::ShiftKeyDown()
+{
+	bShiftKeyDown = true;
+}
+
+void AMain::ShiftKeyUp()
+{
+	bShiftKeyDown = false;
 }

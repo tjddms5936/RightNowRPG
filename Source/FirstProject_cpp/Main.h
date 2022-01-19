@@ -6,6 +6,15 @@
 #include "GameFramework/Character.h"
 #include "Main.generated.h"
 
+UENUM()
+enum class EMovementStatus : uint8
+{
+	EMS_Normal UMETA(DisplayName = "Normal"),
+	EMS_Sprinting UMETA(DisplayName = "Sprinting"),
+
+	EMS_MAX UMETA(DisplayName = "DefaulMAX")
+};
+
 UCLASS()
 class FIRSTPROJECT_CPP_API AMain : public ACharacter
 {
@@ -14,6 +23,26 @@ class FIRSTPROJECT_CPP_API AMain : public ACharacter
 public:
 	// Sets default values for this character's properties
 	AMain();
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enums")
+	EMovementStatus MovementStatus;
+
+	/** Set movement status and running speed */
+	void SetMovementStatus(EMovementStatus Status);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Running")
+	float RunningSpeed;
+
+
+	float SprintingSpeed;
+
+	bool bShiftKeyDown;
+
+	/** Pressed down to enable sprinting */
+	void ShiftKeyDown();
+
+	/** Released to stop sprinting */
+	void ShiftKeyUp();
 
 	/** Camera boom positioning the camera behind the player */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
@@ -29,6 +58,32 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
 	float BaseLookUpRate;
 
+	/*
+	Player Stats
+	
+	*/
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Player Stats")
+	float MaxHealth;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Player Stats")
+	float Health;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Player Stats")
+	float MaxStamina;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Player Stats")
+	float Stamina;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Player Stats")
+	int32 Coins;
+
+
+	void DecrementHealth(float Amount);
+
+	void Die();
+
+	void IncrementCoins(int32 Amount);
 
 
 protected:
