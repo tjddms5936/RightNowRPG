@@ -51,7 +51,7 @@ AMain::AMain()
 	// Default Player Stats
 	MaxHealth = 100.f;
 	Health = 65.f;
-	MaxStamina = 350.f;
+	MaxStamina = 150.f;
 	Stamina = 120.f;
 	Coins = 0;
 
@@ -59,6 +59,13 @@ AMain::AMain()
 	SprintingSpeed = 950.f;
 	
 	bShiftKeyDown = false;
+
+	// Initialize Enums
+	MovementStatus = EMovementStatus::EMS_Normal;
+	StaminaStatus = EStaminasStatus::ESS_Normal;
+
+	StaminaDrainRate = 25.f;
+	MinSprintStamina = 50.f;
 }
 
 // Called when the game starts or when spawned
@@ -72,7 +79,95 @@ void AMain::BeginPlay()
 void AMain::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	
+	float DeltaStamina = StaminaDrainRate * DeltaTime;
 
+	switch (StaminaStatus)
+	{
+		case EStaminasStatus::ESS_Normal:
+			// 스테미너가 정상 상태일 때
+			if (bShiftKeyDown) {
+				// 달리기 누른 상태에서
+				if (Stamina - DeltaStamina <= MinSprintStamina) {
+					// 남아있는 스테미나가 최저기준 이하라면
+					SetStaminaStatus(EStaminasStatus::ESS_BelowMinimum);
+					Stamina -= DeltaStamina;
+				}
+				else {
+					// 최저 이상이라면 스테미나 상태 업데이트 필요 x.
+					Stamina -= DeltaStamina;
+				}
+				// 달리고있는 상태로 변환해주기 
+				SetMovementStatus(EMovementStatus::EMS_Sprinting);
+			}
+			else {
+				// 쉬프트 키 땐 상태에서
+				if (Stamina + DeltaStamina >= MaxStamina) {
+					// 추가하려니 최대치 이상이라면
+					Stamina = MaxStamina; // 그냥 최대치로 초기화
+				}
+				else {
+					// 최대치 아니라면 스테미나 회복시켜주기
+					Stamina += DeltaStamina;
+				}
+				// MovementStatus 설정해주기 
+				SetMovementStatus(EMovementStatus::EMS_Normal);
+			}
+			break;
+		case EStaminasStatus::ESS_BelowMinimum:
+			// 스테미너 상태가 기준최저인 상태
+			if (bShiftKeyDown) {
+				// 달리기 누른 상태에서
+				if (Stamina - DeltaStamina <= 0.f) {
+					// 스테미나 <= 0.f 일때
+					SetStaminaStatus(EStaminasStatus::ESS_Exhausted);
+					Stamina = 0.f;
+					SetMovementStatus(EMovementStatus::EMS_Normal);
+				}
+				else {
+					// 0 < 스테미나 <= BelowMinimun 일때
+					Stamina -= DeltaStamina;
+					SetMovementStatus(EMovementStatus::EMS_Sprinting);
+				}
+			}
+			else {
+				// 쉬프트 키 땐 상태에서
+				if (Stamina + DeltaStamina >= MinSprintStamina) {
+					// 추가회복해서 >= Min 이 된다면 
+					SetStaminaStatus(EStaminasStatus::ESS_Normal);
+					Stamina += DeltaStamina;
+				}
+				else {
+					// 추가 회복 해도 < min 이라면
+					Stamina += DeltaStamina;
+				}
+				// 어떤 상태든 걷는건 동일
+				SetMovementStatus(EMovementStatus::EMS_Normal);
+			}
+			break;
+		case EStaminasStatus::ESS_Exhausted:
+			if (bShiftKeyDown) {
+				Stamina = 0.f;
+			}
+			else {
+				SetStaminaStatus(EStaminasStatus::ESS_ExhaustedRecovering);
+				Stamina += DeltaStamina;
+			}
+			SetMovementStatus(EMovementStatus::EMS_Normal);
+			break;
+		case EStaminasStatus::ESS_ExhaustedRecovering:
+			if (Stamina + DeltaStamina >= MinSprintStamina) {
+				SetStaminaStatus(EStaminasStatus::ESS_Normal);
+				Stamina += DeltaStamina;
+			}
+			else {
+				Stamina += DeltaStamina;
+			}
+			SetMovementStatus(EMovementStatus::EMS_Normal);
+			break;
+		default:
+			;
+	}
 }
 
 // Called to bind functionality to input
