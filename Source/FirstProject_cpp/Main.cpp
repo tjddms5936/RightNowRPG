@@ -8,7 +8,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
-
+#include "Kismet/KismetSystemLibrary.h"
 
 // Sets default values
 AMain::AMain()
@@ -72,7 +72,8 @@ AMain::AMain()
 void AMain::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	 
 }
 
 // Called every frame
@@ -263,4 +264,27 @@ void AMain::ShiftKeyDown()
 void AMain::ShiftKeyUp()
 {
 	bShiftKeyDown = false;
+}
+
+void AMain::ShowPickupLocation() {
+	// Debug 구 형성 
+	/*
+	UObject* WorldContextObject : 어느 월드?
+	FVector const Center : 구 생성 위치는?
+	float Radius : 구 반지름은?
+	int32 Segments : 구 몇 각형?
+	FLinearColor Color : 구 색은?
+	float LifeTime : 겜 시작하고 몇초동안 유지?
+	float Thickness : 구 두께는?
+	*/
+
+	for (int32 i = 0; i < PickupLocations.Num(); i++) {
+		UKismetSystemLibrary::DrawDebugSphere(this, PickupLocations[i] + FVector(0, 0, 100.f), 25.f, 8, FLinearColor::Red, 10.f, .5f);
+	}
+	// 컨테이너에서 쓰는 방법으로 같은 반복문 구현
+	for (FVector Location : PickupLocations) {
+		// FVector Location = auto Location
+		UKismetSystemLibrary::DrawDebugSphere(this, Location + FVector(0, 0, 100.f), 25.f, 8, FLinearColor::Green, 3.f, 2.f);
+	}
+
 }
