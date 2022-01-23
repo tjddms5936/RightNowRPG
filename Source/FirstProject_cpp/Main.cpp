@@ -9,6 +9,10 @@
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Weapon.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimInstance.h"
+
 
 // Sets default values
 AMain::AMain()
@@ -66,6 +70,8 @@ AMain::AMain()
 
 	StaminaDrainRate = 25.f;
 	MinSprintStamina = 50.f;
+	
+	bLMBDown = false;
 }
 
 // Called when the game starts or when spawned
@@ -187,6 +193,10 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AMain::ShiftKeyDown);
 	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AMain::ShiftKeyUp);
 
+	PlayerInputComponent->BindAction("LMB", IE_Pressed, this, &AMain::LMBDown);
+	PlayerInputComponent->BindAction("LMB", IE_Released, this, &AMain::LMBUp);
+
+
 
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMain::MoveForward);
@@ -230,6 +240,34 @@ void AMain::TurnAtRate(float Rate) {
 void AMain::LookUpAtRate(float Rate) {
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
+
+void AMain::LMBDown()
+{
+	bLMBDown = true;
+	if (ActiveOverlappingItem) {
+		// ActiveOverlappingItem은 게임시작후 Main누른상태에서 디테일->Item보면
+		// ActiveOverlappingItem = 없음 상태임. 그러다가 무기랑 오버렙되면 바뀜
+		// 만약 왼쪽마우스를 눌렀는데 아이템과 오버랩 된 상황이라면
+		AWeapon* Weapon = Cast<AWeapon>(ActiveOverlappingItem); // 형변환 하고
+		if (Weapon) {
+			UE_LOG(LogTemp, Warning, TEXT("Weapon Equip!"));
+			Weapon->Equip(this); // 무기 장착! 
+			// 밑에 설정안하면 장착하면 ActiveOverlappingItem가 계속 설정되어있음
+			SetActiveOverlappingItem(nullptr); // null로 해줘서 다른 무기도 장착할 수 있게 함
+		}
+	}
+	else if(EquippedWeapon)
+	{
+		Attack();
+	}
+}
+
+void AMain::LMBUp()
+{
+	bLMBDown = false;
+}
+
+
 
 void AMain::DecrementHealth(float Amount) {
 	Health -= Amount;
@@ -287,4 +325,26 @@ void AMain::ShowPickupLocation() {
 		UKismetSystemLibrary::DrawDebugSphere(this, Location + FVector(0, 0, 100.f), 25.f, 8, FLinearColor::Green, 3.f, 2.f);
 	}
 
+}
+
+void AMain::SetEquippedWeapon(AWeapon* WeaponToSet)
+{
+	
+	if (EquippedWeapon) {
+		// 이미 장착되어있는게 있다면 장착된 걸 Destroy해버림
+		EquippedWeapon->Destroy();
+		UE_LOG(LogTemp, Warning, TEXT("Weapon Destroy"));
+	}
+	EquippedWeapon = WeaponToSet;
+}
+
+void AMain::Attack()
+{
+	bAttacking = true;
+
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && CombatMontage) {
+		AnimInstance->Montage_Play(CombatMontage, 1.35f);
+		AnimInstance->Montage_JumpToSection("Attack_1", CombatMontage);
+	}
 }
