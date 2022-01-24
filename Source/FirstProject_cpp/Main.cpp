@@ -211,7 +211,7 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 
 void AMain::MoveForward(float Value) {
-	if (Controller != nullptr && Value != 0.0f) {
+	if (Controller != nullptr && Value != 0.0f && (!bAttacking)) {
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0.f, Rotation.Yaw, 0.f);
@@ -223,7 +223,7 @@ void AMain::MoveForward(float Value) {
 }
 
 void AMain::MoveRight(float Value) {
-	if (Controller != nullptr && Value != 0.0f) {
+	if (Controller != nullptr && Value != 0.0f && (!bAttacking)) {
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0.f, Rotation.Yaw, 0.f);
@@ -332,19 +332,44 @@ void AMain::SetEquippedWeapon(AWeapon* WeaponToSet)
 	
 	if (EquippedWeapon) {
 		// 이미 장착되어있는게 있다면 장착된 걸 Destroy해버림
-		EquippedWeapon->Destroy();
-		UE_LOG(LogTemp, Warning, TEXT("Weapon Destroy"));
+		 EquippedWeapon->Destroy();
+		 UE_LOG(LogTemp, Warning, TEXT("Weapon Destroy"));
 	}
 	EquippedWeapon = WeaponToSet;
 }
 
 void AMain::Attack()
 {
-	bAttacking = true;
+	if (!bAttacking) {
+		bAttacking = true;
 
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-	if (AnimInstance && CombatMontage) {
-		AnimInstance->Montage_Play(CombatMontage, 1.35f);
-		AnimInstance->Montage_JumpToSection("Attack_1", CombatMontage);
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		if (AnimInstance && CombatMontage) {
+
+			int32 Section = FMath::RandRange(0, 1);
+			switch (Section)
+			{
+			case 0:
+				AnimInstance->Montage_Play(CombatMontage, 2.2f);
+				AnimInstance->Montage_JumpToSection("Attack_1", CombatMontage);
+				break;
+			case 1:
+				AnimInstance->Montage_Play(CombatMontage, 1.8f);
+				AnimInstance->Montage_JumpToSection("Attack_2", CombatMontage);
+				break;
+			default:
+				;
+			}
+		}
+	}
+	
+}
+
+void AMain::AttackEnd()
+{
+	bAttacking = false;
+	if (bLMBDown) {
+		// 왼쪽마우스 버튼 누르고 있는 상태라면 계속 공격
+		Attack();
 	}
 }
