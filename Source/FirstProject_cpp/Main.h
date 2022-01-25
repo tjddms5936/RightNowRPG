@@ -26,6 +26,9 @@ enum class EStaminasStatus : uint8
 	ESS_MAX UMETA(DisplayName = "Default MAX")
 };
 
+//******************************************************************************************
+//											public Class
+//******************************************************************************************
 UCLASS()
 class FIRSTPROJECT_CPP_API AMain : public ACharacter
 {
@@ -35,19 +38,47 @@ public:
 	// Sets default values for this character's properties
 	AMain();
 
-	// 기본적으로 비어있는데, 우리는 픽업할 때 위치를 저장하려고 함 -> Pickup.h에서 추가작업
-	TArray<FVector> PickupLocations;
+	FORCEINLINE void SetStaminaStatus(EStaminasStatus Status) { this->StaminaStatus = Status; }
 
-	UFUNCTION(BlueprintCallable)
-	void ShowPickupLocation();
+	/** Camera boom positioning the camera behind the player */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	class USpringArmComponent* CameraBoom;
 
+	/** Follow Camera */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	class UCameraComponent* FollowCamera;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	class UParticleSystem* HitParticles;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	class USoundCue* HitSound;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Items)
+	class AWeapon* EquippedWeapon;
+
+	/**
+	When you overlapped with item, you can choice whether to equip it or not.
+	*/
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Items)
+	class AItem* ActiveOverlappingItem;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Anims")
+	class UAnimMontage* CombatMontage;
+
+
+//******************************************************************************************
+// 										 public Valuables
+//******************************************************************************************
+public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enums")
 	EMovementStatus MovementStatus;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enums")
 	EStaminasStatus StaminaStatus;
 
-	FORCEINLINE void SetStaminaStatus(EStaminasStatus Status) { this->StaminaStatus = Status; }
+	// 기본적으로 비어있는데, 우리는 픽업할 때 위치를 저장하려고 함 -> Pickup.h에서 추가작업
+	TArray<FVector> PickupLocations;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float StaminaDrainRate;
@@ -55,43 +86,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float MinSprintStamina;
 
-
-
-	/** Set movement status and running speed */
-	void SetMovementStatus(EMovementStatus Status);
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Running")
-	float RunningSpeed;
-
-
-	float SprintingSpeed;
-
-	bool bShiftKeyDown;
-
-	/** Pressed down to enable sprinting */
-	void ShiftKeyDown();
-
-	/** Released to stop sprinting */
-	void ShiftKeyUp();
-
-	/** Camera boom positioning the camera behind the player */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-		class USpringArmComponent* CameraBoom;
-
-	/** Follow Camera */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-		class UCameraComponent* FollowCamera;
-
 	/** Base turn rates to scale turning functions for the camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
 	float BaseTurnRate;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
 	float BaseLookUpRate;
-
-	/*
-	Player Stats
-	
-	*/
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Player Stats")
 	float MaxHealth;
@@ -108,6 +108,46 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Player Stats")
 	int32 Coins;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Running")
+	float RunningSpeed;
+
+	float SprintingSpeed;
+
+	bool bShiftKeyDown;
+
+	bool IsMoveKeyDown;
+
+	bool bLMBDown;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Anims")
+	bool bAttacking;
+
+//******************************************************************************************
+//										public Protected
+//******************************************************************************************
+protected:
+	// Called when the game starts or when spawned
+	virtual void BeginPlay() override;
+
+
+
+//******************************************************************************************
+//										public Function
+//******************************************************************************************
+public:	
+	// Called every frame
+
+	UFUNCTION(BlueprintCallable)
+	void ShowPickupLocation();
+
+	/** Set movement status and running speed */
+	void SetMovementStatus(EMovementStatus Status);
+
+	/** Pressed down to enable sprinting */
+	void ShiftKeyDown();
+
+	/** Released to stop sprinting */
+	void ShiftKeyUp();
 
 	void DecrementHealth(float Amount);
 
@@ -115,13 +155,6 @@ public:
 
 	void IncrementCoins(int32 Amount);
 
-
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
-
-public:	
-	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
 	// Called to bind functionality to input
@@ -142,34 +175,25 @@ public:
 	*/
 	void LookUpAtRate(float Rate);
 
-	bool bLMBDown;
 	void LMBDown();
+
 	void LMBUp();
 
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Items)
-	class AWeapon* EquippedWeapon;
-
-	/**
-	When you overlapped with item, you can choice whether to equip it or not.
-	*/
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Items)
-	class AItem* ActiveOverlappingItem;
-
 	void SetEquippedWeapon(AWeapon* WeaponToSet);
-	FORCEINLINE AWeapon* GetEquippedWeapon() { return this->EquippedWeapon; }
+
+	UFUNCTION(BlueprintCallable)
+	AWeapon* GetEquippedWeapon() { return EquippedWeapon; }
+
 	FORCEINLINE void SetActiveOverlappingItem(AItem* ItemToSet) { ActiveOverlappingItem = ItemToSet; }
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Anims")
-	bool bAttacking;
-
 	void Attack();
 
 	UFUNCTION(BlueprintCallable)
 	void AttackEnd();
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Anims")
-	class UAnimMontage* CombatMontage;
+	UFUNCTION(BlueprintCallable)
+	void PlaySwingSound();
 };

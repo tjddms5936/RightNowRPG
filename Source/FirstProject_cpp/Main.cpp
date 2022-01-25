@@ -2,16 +2,18 @@
 
 
 #include "Main.h"
-#include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
+#include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/PlayerController.h"
-#include "Components/CapsuleComponent.h"
-#include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "Kismet/KismetSystemLibrary.h"
-#include "Weapon.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/GameplayStatics.h"
+#include "Engine/World.h"
+#include "Weapon.h"
 #include "Animation/AnimInstance.h"
+#include "Sound/SoundCue.h"
 
 
 // Sets default values
@@ -72,6 +74,7 @@ AMain::AMain()
 	MinSprintStamina = 50.f;
 	
 	bLMBDown = false;
+	IsMoveKeyDown = false;
 }
 
 // Called when the game starts or when spawned
@@ -198,7 +201,6 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 
 
-
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMain::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AMain::MoveRight);
 
@@ -252,6 +254,7 @@ void AMain::LMBDown()
 		if (Weapon) {
 			UE_LOG(LogTemp, Warning, TEXT("Weapon Equip!"));
 			Weapon->Equip(this); // 무기 장착! 
+			Weapon->SetMainReference(this);
 			// 밑에 설정안하면 장착하면 ActiveOverlappingItem가 계속 설정되어있음
 			SetActiveOverlappingItem(nullptr); // null로 해줘서 다른 무기도 장착할 수 있게 함
 		}
@@ -342,7 +345,6 @@ void AMain::Attack()
 {
 	if (!bAttacking) {
 		bAttacking = true;
-
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 		if (AnimInstance && CombatMontage) {
 
@@ -362,14 +364,21 @@ void AMain::Attack()
 			}
 		}
 	}
-	
 }
 
 void AMain::AttackEnd()
 {
+	// 애니메이션 블루프린트에서 사용하기 위한 함수
 	bAttacking = false;
 	if (bLMBDown) {
 		// 왼쪽마우스 버튼 누르고 있는 상태라면 계속 공격
 		Attack();
+	}
+}
+
+void AMain::PlaySwingSound()
+{
+	if (EquippedWeapon->SwingSound) {
+		UGameplayStatics::PlaySound2D(this, EquippedWeapon->SwingSound);
 	}
 }
