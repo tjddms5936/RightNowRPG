@@ -10,10 +10,12 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "Engine/World.h"
 #include "Weapon.h"
 #include "Animation/AnimInstance.h"
 #include "Sound/SoundCue.h"
+#include "Enemy.h"
 
 
 // Sets default values
@@ -75,6 +77,9 @@ AMain::AMain()
 	
 	bLMBDown = false;
 	IsMoveKeyDown = false;
+
+	InterpSpeed = 15.f;
+	bInterpToEnemy = false;
 }
 
 // Called when the game starts or when spawned
@@ -178,6 +183,22 @@ void AMain::Tick(float DeltaTime)
 		default:
 			;
 	}
+
+	if (bInterpToEnemy && CombatTarget) {
+		// 위 두가지 조건이 만족하면 보간 시작 : 적이 나를 돌아보게 만드는 회전보간
+		FRotator LookAtYaw = GetLookAtRotationYaw(CombatTarget->GetActorLocation());
+		FRotator InterpRotation = FMath::RInterpTo(GetActorRotation(), LookAtYaw, DeltaTime, InterpSpeed);
+		
+		SetActorRotation(InterpRotation);
+	}
+}
+
+FRotator AMain::GetLookAtRotationYaw(FVector Target)
+{
+	// FindLookAtRotation : Find a rotation for an object at Start location to point at Target location.
+	FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), Target);
+	FRotator LookAtRotationYaw(0.f, LookAtRotation.Yaw, 0.f);
+	return LookAtRotationYaw;
 }
 
 // Called to bind functionality to input
@@ -345,6 +366,7 @@ void AMain::Attack()
 {
 	if (!bAttacking) {
 		bAttacking = true;
+		SetInterpToEnemy(true);
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 		if (AnimInstance && CombatMontage) {
 
@@ -370,6 +392,7 @@ void AMain::AttackEnd()
 {
 	// 애니메이션 블루프린트에서 사용하기 위한 함수
 	bAttacking = false;
+	SetInterpToEnemy(false);
 	if (bLMBDown) {
 		// 왼쪽마우스 버튼 누르고 있는 상태라면 계속 공격
 		Attack();
@@ -381,4 +404,9 @@ void AMain::PlaySwingSound()
 	if (EquippedWeapon->SwingSound) {
 		UGameplayStatics::PlaySound2D(this, EquippedWeapon->SwingSound);
 	}
+}
+
+void AMain::SetInterpToEnemy(bool Interp)
+{
+	bInterpToEnemy = Interp;
 }
