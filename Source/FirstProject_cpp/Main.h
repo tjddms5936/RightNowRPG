@@ -71,6 +71,7 @@ public:
 
 	FORCEINLINE void SetCombatTarget(AEnemy* Target) { CombatTarget = Target; }
 
+	
 
 //******************************************************************************************
 // 										 public Valuables
@@ -209,4 +210,7 @@ public:
 	void SetInterpToEnemy(bool Interp);
 
 	FRotator GetLookAtRotationYaw(FVector Target);
+
+	// APawn의 TakeDamge() 함수 재정의
+	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 };
