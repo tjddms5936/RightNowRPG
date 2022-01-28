@@ -11,6 +11,7 @@ enum class EMovementStatus : uint8
 {
 	EMS_Normal UMETA(DisplayName = "Normal"),
 	EMS_Sprinting UMETA(DisplayName = "Sprinting"),
+	EMS_Dead UMETA(DisplayName = "Dead"),
 
 	EMS_MAX UMETA(DisplayName = "DefaulMAX")
 };
@@ -71,7 +72,8 @@ public:
 
 	FORCEINLINE void SetCombatTarget(AEnemy* Target) { CombatTarget = Target; }
 
-	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Controller")
+	class AMainPlayerController* MainPlayerController;
 
 //******************************************************************************************
 // 										 public Valuables
@@ -131,6 +133,14 @@ public:
 	float InterpSpeed;
 
 	bool bInterpToEnemy;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	bool bHasCombatTarget;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	FVector CombatTargetLocation;
+
+	FORCEINLINE void SetHasCombatTarget(bool HasTarget) { bHasCombatTarget = HasTarget; }
 
 //******************************************************************************************
 //										public Protected
@@ -213,4 +223,9 @@ public:
 
 	// APawn의 TakeDamge() 함수 재정의
 	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+
+	UFUNCTION(BlueprintCallable)
+	void DeathEnd();
+
+	virtual void Jump() override;
 };

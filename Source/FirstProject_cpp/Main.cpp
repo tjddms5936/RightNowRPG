@@ -6,6 +6,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Character.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -16,8 +17,7 @@
 #include "Animation/AnimInstance.h"
 #include "Sound/SoundCue.h"
 #include "Enemy.h"
-
-
+#include "MainPlayerController.h"
 // Sets default values
 AMain::AMain()
 {
@@ -80,6 +80,9 @@ AMain::AMain()
 
 	InterpSpeed = 15.f;
 	bInterpToEnemy = false;
+
+	bHasCombatTarget = false;
+	
 }
 
 // Called when the game starts or when spawned
@@ -87,7 +90,7 @@ void AMain::BeginPlay()
 {
 	Super::BeginPlay();
 
-	 
+	MainPlayerController = Cast<AMainPlayerController>(GetController());
 }
 
 // Called every frame
@@ -95,6 +98,8 @@ void AMain::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	
+	if (MovementStatus == EMovementStatus::EMS_Dead) return;
+
 	float DeltaStamina = StaminaDrainRate * DeltaTime;
 
 	switch (StaminaStatus)
@@ -191,6 +196,13 @@ void AMain::Tick(float DeltaTime)
 		
 		SetActorRotation(InterpRotation);
 	}
+
+	if (CombatTarget) {
+		CombatTargetLocation = CombatTarget->GetActorLocation();
+		if (MainPlayerController) {
+			MainPlayerController->EnemyLocation = CombatTargetLocation;
+		}
+	}
 }
 
 FRotator AMain::GetLookAtRotationYaw(FVector Target)
@@ -211,7 +223,7 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	// IE_Pressed : 눌렀을 때
 	// IE_Released : 땟을 때
 	// ACharacter를 이미 상속했고 그 안에는 Jump가 구현되어 있음.
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AMain::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
 	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AMain::ShiftKeyDown);
@@ -234,7 +246,7 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 
 void AMain::MoveForward(float Value) {
-	if (Controller != nullptr && Value != 0.0f && (!bAttacking)) {
+	if (Controller != nullptr && Value != 0.0f && (!bAttacking) && (MovementStatus != EMovementStatus::EMS_Dead) ) {
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0.f, Rotation.Yaw, 0.f);
@@ -246,7 +258,7 @@ void AMain::MoveForward(float Value) {
 }
 
 void AMain::MoveRight(float Value) {
-	if (Controller != nullptr && Value != 0.0f && (!bAttacking)) {
+	if (Controller != nullptr && Value != 0.0f && (!bAttacking) && (MovementStatus != EMovementStatus::EMS_Dead)) {
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0.f, Rotation.Yaw, 0.f);
@@ -267,6 +279,9 @@ void AMain::LookUpAtRate(float Rate) {
 void AMain::LMBDown()
 {
 	bLMBDown = true;
+
+	if (MovementStatus == EMovementStatus::EMS_Dead) return;
+
 	if (ActiveOverlappingItem) {
 		// ActiveOverlappingItem은 게임시작후 Main누른상태에서 디테일->Item보면
 		// ActiveOverlappingItem = 없음 상태임. 그러다가 무기랑 오버렙되면 바뀜
@@ -280,6 +295,7 @@ void AMain::LMBDown()
 			SetActiveOverlappingItem(nullptr); // null로 해줘서 다른 무기도 장착할 수 있게 함
 		}
 	}
+
 	else if(EquippedWeapon)
 	{
 		Attack();
@@ -301,12 +317,30 @@ void AMain::DecrementHealth(float Amount) {
 }
 
 void AMain::Die() {
+	// 만약 이미 죽은 상태라면 바로 맞고 또 애니메이션 발생하지 않도록 설정
+	if (MovementStatus == EMovementStatus::EMS_Dead) return;
+
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && CombatMontage) {
 		AnimInstance->Montage_Play(CombatMontage, 1.0f);
 		AnimInstance->Montage_JumpToSection("Death", CombatMontage);
 	}
+	SetMovementStatus(EMovementStatus::EMS_Dead);
 }
+
+void AMain::DeathEnd()
+{
+	GetMesh()->bPauseAnims = true;
+	GetMesh()->bNoSkeletonUpdate = true;
+}
+
+void AMain::Jump()
+{
+	if (MovementStatus != EMovementStatus::EMS_Dead) {
+		Super::Jump();
+	}
+}
+
 
 void AMain::IncrementCoins(int32 Amount) {
 	this->Coins += Amount;
@@ -368,7 +402,7 @@ void AMain::SetEquippedWeapon(AWeapon* WeaponToSet)
 
 void AMain::Attack()
 {
-	if (!bAttacking) {
+	if (!bAttacking && MovementStatus != EMovementStatus::EMS_Dead) {
 		bAttacking = true;
 		SetInterpToEnemy(true);
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
@@ -417,7 +451,16 @@ void AMain::SetInterpToEnemy(bool Interp)
 
 float AMain::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-	DecrementHealth(DamageAmount);
+	Health -= DamageAmount;
+	if (Health - DamageAmount <= 0.f) {
+		Die();
+		if (DamageCauser) {
+			AEnemy* Enemy = Cast<AEnemy>(DamageCauser);
+			if (Enemy) {
+				Enemy->bHasValidTarget = false;
+			}
+		}
+	}
 
 	return DamageAmount;
 }
