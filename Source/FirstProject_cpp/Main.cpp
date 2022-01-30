@@ -83,6 +83,8 @@ AMain::AMain()
 
 	bHasCombatTarget = false;
 	
+	bMovingForward = false;
+	bMovingRight = false;
 }
 
 // Called when the game starts or when spawned
@@ -118,7 +120,12 @@ void AMain::Tick(float DeltaTime)
 					Stamina -= DeltaStamina;
 				}
 				// 달리고있는 상태로 변환해주기 
-				SetMovementStatus(EMovementStatus::EMS_Sprinting);
+				if (bMovingForward || bMovingRight) {
+					SetMovementStatus(EMovementStatus::EMS_Sprinting);
+				}
+				else {
+					SetMovementStatus(EMovementStatus::EMS_Normal);
+				}
 			}
 			else {
 				// 쉬프트 키 땐 상태에서
@@ -147,7 +154,12 @@ void AMain::Tick(float DeltaTime)
 				else {
 					// 0 < 스테미나 <= BelowMinimun 일때
 					Stamina -= DeltaStamina;
-					SetMovementStatus(EMovementStatus::EMS_Sprinting);
+					if (bMovingForward || bMovingRight) {
+						SetMovementStatus(EMovementStatus::EMS_Sprinting);
+					}
+					else {
+						SetMovementStatus(EMovementStatus::EMS_Normal);
+					}
 				}
 			}
 			else {
@@ -246,6 +258,7 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 
 void AMain::MoveForward(float Value) {
+	bMovingForward = false; // 움직이기 전에 false로 초기화
 	if (Controller != nullptr && Value != 0.0f && (!bAttacking) && (MovementStatus != EMovementStatus::EMS_Dead) ) {
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
@@ -254,10 +267,13 @@ void AMain::MoveForward(float Value) {
 		// 카메라 전환되면 자연스럽게 캐릭터도 그 방향 봄
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 		AddMovementInput(Direction, Value);
+
+		bMovingForward = true; // 움직이는 순간 true로 초기화
 	}
 }
 
 void AMain::MoveRight(float Value) {
+	bMovingRight = false; // 움직이기 전에 false로 초기화
 	if (Controller != nullptr && Value != 0.0f && (!bAttacking) && (MovementStatus != EMovementStatus::EMS_Dead)) {
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
@@ -265,6 +281,8 @@ void AMain::MoveRight(float Value) {
 
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 		AddMovementInput(Direction, Value);
+
+		bMovingRight = true; // 움직이는 순간 true로 초기화
 	}
 }
 
@@ -463,4 +481,38 @@ float AMain::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, ACo
 	}
 
 	return DamageAmount;
+}
+
+void AMain::UpdateCombatTarget()
+{
+	// 가장 가까운 적 찾아주는 함수
+	TArray<AActor*> OverlappingActors;
+	GetOverlappingActors(OverlappingActors, EnemyFilter);
+
+	if (OverlappingActors.Num() == 0) {
+		if (MainPlayerController) {
+			MainPlayerController->RemoveEnemyHealthBar();
+		}
+		return;
+	}
+	AEnemy* ClosestEnemy = Cast<AEnemy>(OverlappingActors[0]);
+	if (ClosestEnemy) {
+		float MinDistance = (ClosestEnemy->GetActorLocation() - GetActorLocation()).Size();
+
+		for (auto Actor : OverlappingActors) {
+			AEnemy* Enemy = Cast<AEnemy>(Actor);
+			if (Enemy) {
+				float DistanceToActor = (Enemy->GetActorLocation() - GetActorLocation()).Size();
+				if (MinDistance > DistanceToActor) {
+					MinDistance = DistanceToActor;
+					ClosestEnemy = Enemy;
+				}
+			}
+		}
+		if (MainPlayerController) {
+			MainPlayerController->DisplayEnemyHealthBar();
+		}
+		SetCombatTarget(ClosestEnemy);
+		bHasCombatTarget = true;
+	}
 }

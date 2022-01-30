@@ -75,6 +75,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Controller")
 	class AMainPlayerController* MainPlayerController;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	TSubclassOf<class AEnemy> EnemyFilter;
+
 //******************************************************************************************
 // 										 public Valuables
 //******************************************************************************************
@@ -141,6 +144,10 @@ public:
 	FVector CombatTargetLocation;
 
 	FORCEINLINE void SetHasCombatTarget(bool HasTarget) { bHasCombatTarget = HasTarget; }
+
+	bool bMovingForward;
+	bool bMovingRight;
+
 
 //******************************************************************************************
 //										public Protected
@@ -228,4 +235,6 @@ public:
 	void DeathEnd();
 
 	virtual void Jump() override;
+
+	void UpdateCombatTarget();
 };
