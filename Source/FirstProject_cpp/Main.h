@@ -180,7 +180,14 @@ public:
 
 	void Die();
 
+	UFUNCTION(BlueprintCallable)
 	void IncrementCoins(int32 Amount);
+
+	UFUNCTION(BlueprintCallable)
+	void IncrementHealth(float Amount);
+
+	UFUNCTION(BlueprintCallable)
+	void IncrementStamina(float Amount);
 
 	virtual void Tick(float DeltaTime) override;
 

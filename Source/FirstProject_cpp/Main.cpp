@@ -364,6 +364,23 @@ void AMain::IncrementCoins(int32 Amount) {
 	this->Coins += Amount;
 }
 
+void AMain::IncrementHealth(float Amount) {
+	if (Health + Amount >= MaxHealth) {
+		Health = MaxHealth;
+		return;
+	}
+	Health += Amount;
+}
+
+void AMain::IncrementStamina(float Amount)
+{
+	if (Stamina + Amount >= MaxStamina) {
+		Stamina = MaxStamina;
+		return;
+	}
+	Stamina += Amount;
+}
+
 void AMain::SetMovementStatus(EMovementStatus Status) {
 	MovementStatus = Status;
 	if (MovementStatus == EMovementStatus::EMS_Sprinting) {
