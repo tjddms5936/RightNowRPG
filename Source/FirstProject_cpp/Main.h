@@ -244,4 +244,12 @@ public:
 	virtual void Jump() override;
 
 	void UpdateCombatTarget();
+
+	void SwitchLevel(FName LevelName);
+
+	UFUNCTION(BlueprintCallable)
+	void SaveGame();
+
+	UFUNCTION(BlueprintCallable)
+	void LoadGame(bool SetPosition);
 };

@@ -18,6 +18,8 @@
 #include "Sound/SoundCue.h"
 #include "Enemy.h"
 #include "MainPlayerController.h"
+#include "FirstSaveGame.h"
+
 // Sets default values
 AMain::AMain()
 {
@@ -532,4 +534,67 @@ void AMain::UpdateCombatTarget()
 		SetCombatTarget(ClosestEnemy);
 		bHasCombatTarget = true;
 	}
+}
+
+void AMain::SwitchLevel(FName LevelName)
+{
+	UWorld* World = GetWorld();
+	if (World) {
+		FString CurrentLevel = World->GetMapName();
+		// FName을 FString으로 형변환 못함 but 반대는 가능 
+		// 이를 위해서 참조 해제 연산자를 사용하셈
+		FName CurrentLevelName(*CurrentLevel);
+		if (CurrentLevelName != LevelName) {
+			UGameplayStatics::OpenLevel(World, LevelName);
+		}
+	}
+}
+
+void AMain::SaveGame()
+{
+	/*
+	UFirstSaveGame::StaticClass() :  USaveGame 포인터가 생김
+	 UGameplayStatics::CreateSaveGameObject(UFirstSaveGame::StaticClass());
+	 CreateSaveGameObject : 데이터를 설정할 비어 있는 새 SaveGame 개체를 만든 다음 SaveGameToSlot에 전달합니다.
+	*/
+	UFirstSaveGame* SaveGameInstance = Cast<UFirstSaveGame>(UGameplayStatics::CreateSaveGameObject(UFirstSaveGame::StaticClass()));
+	SaveGameInstance->CharacterStats.Health = Health;
+	SaveGameInstance->CharacterStats.MaxHealth = MaxHealth;
+	SaveGameInstance->CharacterStats.Stamina = Stamina;
+	SaveGameInstance->CharacterStats.MaxStamina = MaxStamina;
+	SaveGameInstance->CharacterStats.Coins = Coins;
+	SaveGameInstance->CharacterStats.Location = GetActorLocation();
+	SaveGameInstance->CharacterStats.Rotation = GetActorRotation();
+
+	/*
+	게임 내 데이터를 컴퓨터에 저장하기 위함
+	SaveGameObject의 내용을 플랫폼별 저장 슬롯/파일에 저장합니다.
+	@note 이것은 모든 비일시적 속성을 기록할 것이며 SaveGame 속성 플래그는 확인되지 않습니다
+	*/
+	UGameplayStatics::SaveGameToSlot(SaveGameInstance, SaveGameInstance->PlayerName, SaveGameInstance->UserIndex);
+}
+
+void AMain::LoadGame(bool SetPosition)
+{
+	UFirstSaveGame* LoadGameInstance = Cast<UFirstSaveGame>(UGameplayStatics::CreateSaveGameObject(UFirstSaveGame::StaticClass()));
+
+	LoadGameInstance = Cast<UFirstSaveGame>(UGameplayStatics::LoadGameFromSlot(LoadGameInstance->PlayerName, LoadGameInstance->UserIndex));
+
+	Health = LoadGameInstance->CharacterStats.Health;
+	MaxHealth = LoadGameInstance->CharacterStats.MaxHealth;
+	Stamina = LoadGameInstance->CharacterStats.Stamina;
+	MaxStamina = LoadGameInstance->CharacterStats.MaxStamina;
+	Coins = LoadGameInstance->CharacterStats.Coins;
+
+	/*
+	다음 맵으로 레벨 이동한다는 것은 Save Load한다는것임. 
+	단순하게 다음 레벨로 넘어갈때
+	 우리는 위치나 회전값까지 가져올 필요는 없음
+	*/
+	if (SetPosition) {
+		// SetPosition이 true라는 건 레벨이동이 아니라는 것.
+		SetActorLocation(LoadGameInstance->CharacterStats.Location);
+		SetActorRotation(LoadGameInstance->CharacterStats.Rotation);
+	 }
+
 }
