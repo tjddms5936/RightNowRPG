@@ -39,6 +39,9 @@ public:
 	// Sets default values for this character's properties
 	AMain();
 
+	UPROPERTY(EditDefaultsOnly, Category = "SaveData")
+	TSubclassOf<class AItemStorage> WeaponStorage;
+
 	FORCEINLINE void SetStaminaStatus(EStaminasStatus Status) { this->StaminaStatus = Status; }
 
 	/** Camera boom positioning the camera behind the player */
@@ -148,6 +151,7 @@ public:
 	bool bMovingForward;
 	bool bMovingRight;
 
+	bool bESCDown;
 
 //******************************************************************************************
 //										public Protected
@@ -200,6 +204,12 @@ public:
 	/** Called for side to side input */
 	void MoveRight(float Value);
 
+	/** Called for Yaw rotation */
+	void Turn(float Value);
+
+	/** Called for Pitch rotation */
+	void LookUp(float Value);
+
 	/** Called via input to turn at a given rate 
 	* @param Rate This is a normalized rate, i.e. 1.0 means 100% of desired turn rate
 	*/
@@ -212,6 +222,10 @@ public:
 	void LMBDown();
 
 	void LMBUp();
+
+	void ESCDown();
+
+	void ESCUp();
 
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
@@ -250,6 +264,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SaveGame();
 
+	// SetPosition is boolien whether you just moving another location or jumping another Level
 	UFUNCTION(BlueprintCallable)
 	void LoadGame(bool SetPosition);
+
+	// Using function when jumping another level.
+	void LoadGameNoSwitch();
+
+	bool CanMove(float Value);
 };

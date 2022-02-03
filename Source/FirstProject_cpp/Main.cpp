@@ -19,7 +19,7 @@
 #include "Enemy.h"
 #include "MainPlayerController.h"
 #include "FirstSaveGame.h"
-
+#include "ItemStorage.h"
 // Sets default values
 AMain::AMain()
 {
@@ -87,6 +87,9 @@ AMain::AMain()
 	
 	bMovingForward = false;
 	bMovingRight = false;
+
+	bESCDown = false;
+	
 }
 
 // Called when the game starts or when spawned
@@ -95,6 +98,13 @@ void AMain::BeginPlay()
 	Super::BeginPlay();
 
 	MainPlayerController = Cast<AMainPlayerController>(GetController());
+
+	// 다른 레벨로 넘어갈 때 무기, 코인, 체력 등등등 다 갖고오기 위함. 위치값은 필요 x
+	// LoadGameNoSwitch();
+
+	if (MainPlayerController) {
+		MainPlayerController->GameModeOnly();
+	}
 }
 
 // Called every frame
@@ -246,22 +256,51 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAction("LMB", IE_Pressed, this, &AMain::LMBDown);
 	PlayerInputComponent->BindAction("LMB", IE_Released, this, &AMain::LMBUp);
 
+	PlayerInputComponent->BindAction("ESC", IE_Pressed, this, &AMain::ESCDown);
+	PlayerInputComponent->BindAction("ESC", IE_Released, this, &AMain::ESCUp);
+
 
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMain::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AMain::MoveRight);
 
-	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
-	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
+	PlayerInputComponent->BindAxis("Turn", this, &AMain::Turn);
+	PlayerInputComponent->BindAxis("LookUp", this, &AMain::LookUp);
 	PlayerInputComponent->BindAxis("TurnRate", this, &AMain::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &AMain::LookUpAtRate);
 
 }
 
+bool AMain::CanMove(float Value)
+{
+	if (MainPlayerController) {
+		// 아래 5개가 모두 true일 경우 true 리턴할 것임.
+		return Value != 0.0f &&
+			!bAttacking &&
+			MovementStatus != EMovementStatus::EMS_Dead &&
+			!MainPlayerController->bPauseMenuVisible;
+	}
+	return false;
+}
+
+void AMain::Turn(float Value)
+{
+	if (CanMove(Value)) {
+		AddControllerYawInput(Value);
+	}
+}
+
+void AMain::LookUp(float Value)
+{
+	if (CanMove(Value)) {
+		AddControllerPitchInput(Value);
+	}
+}
+
 
 void AMain::MoveForward(float Value) {
 	bMovingForward = false; // 움직이기 전에 false로 초기화
-	if (Controller != nullptr && Value != 0.0f && (!bAttacking) && (MovementStatus != EMovementStatus::EMS_Dead) ) {
+	if (CanMove(Value)) {
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0.f, Rotation.Yaw, 0.f);
@@ -276,7 +315,7 @@ void AMain::MoveForward(float Value) {
 
 void AMain::MoveRight(float Value) {
 	bMovingRight = false; // 움직이기 전에 false로 초기화
-	if (Controller != nullptr && Value != 0.0f && (!bAttacking) && (MovementStatus != EMovementStatus::EMS_Dead)) {
+	if (CanMove(Value)) {
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0.f, Rotation.Yaw, 0.f);
@@ -301,6 +340,11 @@ void AMain::LMBDown()
 	bLMBDown = true;
 
 	if (MovementStatus == EMovementStatus::EMS_Dead) return;
+
+	if (MainPlayerController) {
+		// PausMenu가 켜진 상태에서 왼쪽마우스 누르면 공격이나 무기장착 안하도록..
+		if (MainPlayerController->bPauseMenuVisible) return;
+	}
 
 	if (ActiveOverlappingItem) {
 		// ActiveOverlappingItem은 게임시작후 Main누른상태에서 디테일->Item보면
@@ -327,6 +371,18 @@ void AMain::LMBUp()
 	bLMBDown = false;
 }
 
+void AMain::ESCDown()
+{
+	bESCDown = true;
+	if (MainPlayerController) {
+		MainPlayerController->TogglePauseMenu();
+	}
+}
+
+void AMain::ESCUp()
+{
+	bESCDown = false;
+}
 
 
 void AMain::DecrementHealth(float Amount) {
@@ -356,6 +412,11 @@ void AMain::DeathEnd()
 
 void AMain::Jump()
 {
+	if (MainPlayerController) {
+		// PausMenu가 켜진 상태에서 Jump안되도록..
+		if (MainPlayerController->bPauseMenuVisible) return;
+	}
+
 	if (MovementStatus != EMovementStatus::EMS_Dead) {
 		Super::Jump();
 	}
@@ -546,6 +607,7 @@ void AMain::SwitchLevel(FName LevelName)
 		FName CurrentLevelName(*CurrentLevel);
 		if (CurrentLevelName != LevelName) {
 			UGameplayStatics::OpenLevel(World, LevelName);
+			LoadGameNoSwitch();
 		}
 	}
 }
@@ -565,7 +627,18 @@ void AMain::SaveGame()
 	SaveGameInstance->CharacterStats.Coins = Coins;
 	SaveGameInstance->CharacterStats.Location = GetActorLocation();
 	SaveGameInstance->CharacterStats.Rotation = GetActorRotation();
+	
+	FString MapName = GetWorld()->GetMapName();
+	// UE_LOG(LogTemp, Warning, TEXT("Map Name : %s"), *MapName);
+	// LOG해보면 맵 이름이 UEDPIE_0_SunTemple 이런식으로 나옴 디폴트로 붙는거라 이거 제거해야함
+	MapName.RemoveFromStart(GetWorld()->StreamingLevelsPrefix);
 
+	SaveGameInstance->CharacterStats.LevelName = MapName;
+
+	if (EquippedWeapon) {
+		// Main.cpp파일에서 FirstSaveGame.cpp의 정보를 Weapon.cpp에게로 넘겨줌 
+		SaveGameInstance->CharacterStats.WeaponName = EquippedWeapon->Name;
+	}
 	/*
 	게임 내 데이터를 컴퓨터에 저장하기 위함
 	SaveGameObject의 내용을 플랫폼별 저장 슬롯/파일에 저장합니다.
@@ -576,6 +649,7 @@ void AMain::SaveGame()
 
 void AMain::LoadGame(bool SetPosition)
 {
+	UE_LOG(LogTemp, Warning, TEXT("****************************LoadGame Begin****************************"));
 	UFirstSaveGame* LoadGameInstance = Cast<UFirstSaveGame>(UGameplayStatics::CreateSaveGameObject(UFirstSaveGame::StaticClass()));
 
 	LoadGameInstance = Cast<UFirstSaveGame>(UGameplayStatics::LoadGameFromSlot(LoadGameInstance->PlayerName, LoadGameInstance->UserIndex));
@@ -586,6 +660,20 @@ void AMain::LoadGame(bool SetPosition)
 	MaxStamina = LoadGameInstance->CharacterStats.MaxStamina;
 	Coins = LoadGameInstance->CharacterStats.Coins;
 
+	if (WeaponStorage) {
+		AItemStorage* Weapons = GetWorld()->SpawnActor<AItemStorage>(WeaponStorage);
+		if (Weapons) {
+			FString WeaponName = LoadGameInstance->CharacterStats.WeaponName;
+
+			if (Weapons->WeaponMap.Contains(WeaponName)) {
+				// TMap의 Key값에 WeaponName이 있을 경우에만
+				// Weapons->WeaponMap[WeaponName] -> Key : WeaponName  return : 해당되는 value값
+				AWeapon* WeaponToEquip = GetWorld()->SpawnActor<AWeapon>(Weapons->WeaponMap[WeaponName]);
+				WeaponToEquip->Equip(this);
+			}
+			
+		}
+	}
 	/*
 	다음 맵으로 레벨 이동한다는 것은 Save Load한다는것임. 
 	단순하게 다음 레벨로 넘어갈때
@@ -597,4 +685,46 @@ void AMain::LoadGame(bool SetPosition)
 		SetActorRotation(LoadGameInstance->CharacterStats.Rotation);
 	 }
 
+	SetMovementStatus(EMovementStatus::EMS_Normal);
+	GetMesh()->bPauseAnims = false;
+	GetMesh()->bNoSkeletonUpdate = false;
+
+	if (LoadGameInstance->CharacterStats.LevelName != TEXT("")) {
+		FName LevelName(*LoadGameInstance->CharacterStats.LevelName);
+		
+		SwitchLevel(LevelName);
+	}
+}
+
+void AMain::LoadGameNoSwitch()
+{
+	UE_LOG(LogTemp, Warning, TEXT("****************************LoadGameNoSwitch Begin****************************"));
+	UFirstSaveGame* LoadGameInstance = Cast<UFirstSaveGame>(UGameplayStatics::CreateSaveGameObject(UFirstSaveGame::StaticClass()));
+
+	LoadGameInstance = Cast<UFirstSaveGame>(UGameplayStatics::LoadGameFromSlot(LoadGameInstance->PlayerName, LoadGameInstance->UserIndex));
+
+	Health = LoadGameInstance->CharacterStats.Health;
+	MaxHealth = LoadGameInstance->CharacterStats.MaxHealth;
+	Stamina = LoadGameInstance->CharacterStats.Stamina;
+	MaxStamina = LoadGameInstance->CharacterStats.MaxStamina;
+	Coins = LoadGameInstance->CharacterStats.Coins;
+
+	if (WeaponStorage) {
+		AItemStorage* Weapons = GetWorld()->SpawnActor<AItemStorage>(WeaponStorage);
+		if (Weapons) {
+			FString WeaponName = LoadGameInstance->CharacterStats.WeaponName;
+
+			if (Weapons->WeaponMap.Contains(WeaponName)) {
+				// TMap의 Key값에 WeaponName이 있을 경우에만
+				// Weapons->WeaponMap[WeaponName] -> Key : WeaponName  return : 해당되는 value값
+				AWeapon* WeaponToEquip = GetWorld()->SpawnActor<AWeapon>(Weapons->WeaponMap[WeaponName]);
+				WeaponToEquip->Equip(this);
+			}
+
+		}
+	}
+
+	SetMovementStatus(EMovementStatus::EMS_Normal);
+	GetMesh()->bPauseAnims = false;
+	GetMesh()->bNoSkeletonUpdate = false;
 }
