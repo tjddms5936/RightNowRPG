@@ -100,10 +100,14 @@ void AMain::BeginPlay()
 	MainPlayerController = Cast<AMainPlayerController>(GetController());
 
 	// 다른 레벨로 넘어갈 때 무기, 코인, 체력 등등등 다 갖고오기 위함. 위치값은 필요 x
-	// LoadGameNoSwitch();
+	FString Map = GetWorld()->GetMapName();
+	Map.RemoveFromStart(GetWorld()->StreamingLevelsPrefix);
 
-	if (MainPlayerController) {
-		MainPlayerController->GameModeOnly();
+	if (Map != "SunTemple") {
+		LoadGameNoSwitch();
+		if (MainPlayerController) {
+			MainPlayerController->GameModeOnly();
+		}
 	}
 }
 
