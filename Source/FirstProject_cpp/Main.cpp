@@ -102,7 +102,6 @@ void AMain::BeginPlay()
 	// 다른 레벨로 넘어갈 때 무기, 코인, 체력 등등등 다 갖고오기 위함. 위치값은 필요 x
 	FString Map = GetWorld()->GetMapName();
 	Map.RemoveFromStart(GetWorld()->StreamingLevelsPrefix);
-
 	if (Map != "SunTemple") {
 		LoadGameNoSwitch();
 		if (MainPlayerController) {
@@ -356,7 +355,6 @@ void AMain::LMBDown()
 		// 만약 왼쪽마우스를 눌렀는데 아이템과 오버랩 된 상황이라면
 		AWeapon* Weapon = Cast<AWeapon>(ActiveOverlappingItem); // 형변환 하고
 		if (Weapon) {
-			UE_LOG(LogTemp, Warning, TEXT("Weapon Equip!"));
 			Weapon->Equip(this); // 무기 장착! 
 			Weapon->SetMainReference(this);
 			// 밑에 설정안하면 장착하면 ActiveOverlappingItem가 계속 설정되어있음
@@ -497,7 +495,6 @@ void AMain::SetEquippedWeapon(AWeapon* WeaponToSet)
 	if (EquippedWeapon) {
 		// 이미 장착되어있는게 있다면 장착된 걸 Destroy해버림
 		 EquippedWeapon->Destroy();
-		 UE_LOG(LogTemp, Warning, TEXT("Weapon Destroy"));
 	}
 	EquippedWeapon = WeaponToSet;
 }
@@ -606,6 +603,7 @@ void AMain::SwitchLevel(FName LevelName)
 	UWorld* World = GetWorld();
 	if (World) {
 		FString CurrentLevel = World->GetMapName();
+		CurrentLevel.RemoveFromStart(World->GetMapName());
 		// FName을 FString으로 형변환 못함 but 반대는 가능 
 		// 이를 위해서 참조 해제 연산자를 사용하셈
 		FName CurrentLevelName(*CurrentLevel);
@@ -633,7 +631,6 @@ void AMain::SaveGame()
 	SaveGameInstance->CharacterStats.Rotation = GetActorRotation();
 	
 	FString MapName = GetWorld()->GetMapName();
-	// UE_LOG(LogTemp, Warning, TEXT("Map Name : %s"), *MapName);
 	// LOG해보면 맵 이름이 UEDPIE_0_SunTemple 이런식으로 나옴 디폴트로 붙는거라 이거 제거해야함
 	MapName.RemoveFromStart(GetWorld()->StreamingLevelsPrefix);
 
@@ -692,10 +689,8 @@ void AMain::LoadGame(bool SetPosition)
 	SetMovementStatus(EMovementStatus::EMS_Normal);
 	GetMesh()->bPauseAnims = false;
 	GetMesh()->bNoSkeletonUpdate = false;
-
-	if (LoadGameInstance->CharacterStats.LevelName != TEXT("")) {
+	if (LoadGameInstance->CharacterStats.LevelName != TEXT("") && LoadGameInstance->CharacterStats.LevelName != TEXT("SunTemple")) {
 		FName LevelName(*LoadGameInstance->CharacterStats.LevelName);
-		
 		SwitchLevel(LevelName);
 	}
 }
