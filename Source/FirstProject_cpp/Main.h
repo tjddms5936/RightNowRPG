@@ -81,6 +81,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	TSubclassOf<class AEnemy> EnemyFilter;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
+	TSubclassOf<class UCameraShake> CameraShake;
+
 //******************************************************************************************
 // 										 public Valuables
 //******************************************************************************************
@@ -272,4 +275,6 @@ public:
 	void LoadGameNoSwitch();
 
 	bool CanMove(float Value);
+
+	void EquipSocket();
 };

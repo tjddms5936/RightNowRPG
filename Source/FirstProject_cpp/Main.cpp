@@ -3,6 +3,7 @@
 
 #include "Main.h"
 #include "Camera/CameraComponent.h"
+#include "Camera/PlayerCameraManager.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -20,6 +21,8 @@
 #include "MainPlayerController.h"
 #include "FirstSaveGame.h"
 #include "ItemStorage.h"
+#include "CameraShaking.h"
+
 // Sets default values
 AMain::AMain()
 {
@@ -505,6 +508,10 @@ void AMain::Attack()
 		bAttacking = true;
 		SetInterpToEnemy(true);
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+
+		// 카메라 쉐이크 주기
+		GetWorld()->GetFirstPlayerController()->PlayerCameraManager->PlayCameraShake(CameraShake, 1.f);
+
 		if (AnimInstance && CombatMontage) {
 
 			int32 Section = FMath::RandRange(0, 1);
