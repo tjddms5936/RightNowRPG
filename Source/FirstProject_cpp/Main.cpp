@@ -22,6 +22,9 @@
 #include "FirstSaveGame.h"
 #include "ItemStorage.h"
 #include "CameraShaking.h"
+#include "SkillBase.h"
+
+
 
 // Sets default values
 AMain::AMain()
@@ -423,7 +426,7 @@ void AMain::Jump()
 	}
 
 	if (MovementStatus != EMovementStatus::EMS_Dead) {
-		Super::Jump();
+		ACharacter::Jump();
 	}
 }
 
@@ -514,16 +517,33 @@ void AMain::Attack()
 
 		if (AnimInstance && CombatMontage) {
 
-			int32 Section = FMath::RandRange(0, 1);
+			int32 Section = FMath::RandRange(1, 3);
 			switch (Section)
 			{
-			case 0:
+			case 1:
 				AnimInstance->Montage_Play(CombatMontage, 2.2f);
 				AnimInstance->Montage_JumpToSection("Attack_1", CombatMontage);
+				if (Skill_1) {
+					FTransform SkillTransForm = FTransform(GetActorRotation(), GetMesh()->GetSocketLocation("SkillSocket"), GetActorScale3D());
+					GetWorld()->SpawnActor<ASkillBase>(Skill_1, SkillTransForm);
+				}
 				break;
-			case 1:
+			case 2:
 				AnimInstance->Montage_Play(CombatMontage, 1.8f);
 				AnimInstance->Montage_JumpToSection("Attack_2", CombatMontage);
+				if (Skill_2) {
+					FTransform SkillTransForm = FTransform(GetActorRotation(), GetMesh()->GetSocketLocation("SkillSocket"), GetActorScale3D());
+					GetWorld()->SpawnActor<ASkillBase>(Skill_2, SkillTransForm);
+				}
+				break;
+
+			case 3:
+				AnimInstance->Montage_Play(CombatMontage, 2.8f);
+				AnimInstance->Montage_JumpToSection("MeteoSkill", CombatMontage);
+				if (Skill_3) {
+					FTransform SkillTransForm = FTransform(GetActorRotation(), GetMesh()->GetSocketLocation("SkillSocket"), GetActorScale3D());
+					GetWorld()->SpawnActor<ASkillBase>(Skill_3, SkillTransForm);
+				}
 				break;
 			default:
 				;
@@ -734,3 +754,11 @@ void AMain::LoadGameNoSwitch()
 	GetMesh()->bPauseAnims = false;
 	GetMesh()->bNoSkeletonUpdate = false;
 }
+//
+//void AMain::ActivateSkill()
+//{
+//	FVector NewLocation = GetMesh()->GetSocketLocation(FName("SkillSocket"));
+//	FRotator SkillRotation = GetActorRotation();
+//	FVector SkillScale = GetActorScale3D();
+//	ASkillBase* Skill = GetWorld()->SpawnActor<ASkillBase>(Skill_1, NewLocation, SkillRotation, SkillScale);
+//}

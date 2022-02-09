@@ -27,6 +27,7 @@ enum class EStaminasStatus : uint8
 	ESS_MAX UMETA(DisplayName = "Default MAX")
 };
 
+
 //******************************************************************************************
 //											public Class
 //******************************************************************************************
@@ -61,6 +62,15 @@ public:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Items)
 	class AWeapon* EquippedWeapon;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Skill")
+	TSubclassOf<class ASkillBase> Skill_1;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Skill")
+	TSubclassOf<class ASkillBase> Skill_2;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Skill")
+	TSubclassOf<class ASkillBase> Skill_3;
+
 	/**
 	When you overlapped with item, you can choice whether to equip it or not.
 	*/
@@ -83,6 +93,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
 	TSubclassOf<class UCameraShake> CameraShake;
+
 
 //******************************************************************************************
 // 										 public Valuables
@@ -277,4 +288,6 @@ public:
 	bool CanMove(float Value);
 
 	void EquipSocket();
+
+	// void ActivateSkill();
 };
