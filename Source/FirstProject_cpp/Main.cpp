@@ -10,10 +10,12 @@
 #include "GameFramework/Character.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/BoxComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Engine/World.h"
+#include "Engine/SkeletalMeshSocket.h"
 #include "Weapon.h"
 #include "Animation/AnimInstance.h"
 #include "Sound/SoundCue.h"
@@ -23,7 +25,7 @@
 #include "ItemStorage.h"
 #include "CameraShaking.h"
 #include "SkillBase.h"
-
+#include "Particles/ParticleSystemComponent.h"
 
 
 // Sets default values
@@ -49,6 +51,10 @@ AMain::AMain()
 	// Set our turn rates for input
 	BaseTurnRate = 65.f;
 	BaseLookUpRate = 65.f;
+
+	SkillSpawningBox = CreateDefaultSubobject<UBoxComponent>(TEXT("SkillSpawningBox"));
+	SkillSpawningBox->SetupAttachment(GetRootComponent());
+
 
 	// We don't want to rotate the character along with the rotation
 	// Let that just affect the camera.
@@ -95,7 +101,7 @@ AMain::AMain()
 	bMovingRight = false;
 
 	bESCDown = false;
-	
+	bSkillKeyDown = false;
 }
 
 // Called when the game starts or when spawned
@@ -268,8 +274,12 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAction("ESC", IE_Pressed, this, &AMain::ESCDown);
 	PlayerInputComponent->BindAction("ESC", IE_Released, this, &AMain::ESCUp);
 
+	PlayerInputComponent->BindAction("Skill1", IE_Pressed, this, &AMain::Skill1Down);
+	PlayerInputComponent->BindAction("Skill1", IE_Released, this, &AMain::Skill1Up);
 
-
+	PlayerInputComponent->BindAction("Skill2", IE_Pressed, this, &AMain::Skill2Down);
+	PlayerInputComponent->BindAction("Skill2", IE_Released, this, &AMain::Skill2Up);
+	
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMain::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AMain::MoveRight);
 
@@ -392,6 +402,75 @@ void AMain::ESCUp()
 	bESCDown = false;
 }
 
+FVector AMain::GetSpawnPoint() {
+	// GetScaledBoxExtent() : Box의 Extent를 벡터로 반환
+	FVector Extent = SkillSpawningBox->GetScaledBoxExtent();
+	// GetComponentLocation() : Box의 Origin 위치 벡터로 반환
+	FVector Origin = SkillSpawningBox->GetComponentLocation();
+	// RandomPointInBoundingBox : 첫 번째 벡터를 원점으로 사용하고 두 번째 벡터를 상자 범위로 사용하여 지정된 경계 상자 내의 임의 점을 반환합니다.
+	FVector Point = UKismetMathLibrary::RandomPointInBoundingBox(Origin, Extent);
+	return Point;
+}
+
+void AMain::Skill1Down()
+{
+	bSkillKeyDown = true;
+	if (MainPlayerController) {
+		// PausMenu가 켜진 상태에서 Jump안되도록..
+		if (MainPlayerController->bPauseMenuVisible) return;
+	}
+
+	if (!bAttacking && MovementStatus != EMovementStatus::EMS_Dead) {
+		bAttacking = true;
+		SetInterpToEnemy(true);
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		if (AnimInstance && CombatMontage) {
+			AnimInstance->Montage_Play(CombatMontage, 2.2f);
+			AnimInstance->Montage_JumpToSection("MeteoSkill", CombatMontage);
+			if (Skill_3 && Skill_3_2) {
+				// 메테오 스킬은 공중장판과 운석 두개로 구성
+				for (int i = 0; i < 5; i++) {
+					FVector RandLocation = GetSpawnPoint();
+					FTransform SkillTransForm = FTransform(GetActorRotation(), RandLocation, GetActorScale3D());
+					// FTransform SkillTransForm2 = FTransform(GetActorRotation(), RandLocation, GetActorScale3D());
+					GetWorld()->SpawnActor<ASkillBase>(Skill_3, SkillTransForm); // 메테오 장판 움직임x
+					GetWorld()->SpawnActor<ASkillBase>(Skill_3_2, SkillTransForm); // 메테오 움직임o
+					// 카메라 쉐이크 주기
+					GetWorld()->GetFirstPlayerController()->PlayerCameraManager->PlayCameraShake(CameraShake, 1.f);
+				}
+			}
+		}
+	}
+
+}
+void AMain::Skill1Up()
+{
+	bSkillKeyDown = false;
+}
+void AMain::Skill2Down()
+{
+	bSkillKeyDown = true;
+	if (MainPlayerController) {
+		if (MainPlayerController->bPauseMenuVisible) return;
+	}
+	if (!bAttacking && MovementStatus != EMovementStatus::EMS_Dead) {
+		bAttacking = true;
+		SetInterpToEnemy(true);
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		if (AnimInstance) {
+			AnimInstance->Montage_Play(CombatMontage, 2.2f);
+			AnimInstance->Montage_JumpToSection("BuffSkill", CombatMontage);
+		}
+		if (Skill_4) {
+			FTransform SkillTransForm = FTransform(GetActorRotation(), GetMesh()->GetSocketLocation("BuffSkillLocation"), GetActorScale3D());
+			GetWorld()->SpawnActor<ASkillBase>(Skill_4, SkillTransForm);
+		}
+	}
+}
+void AMain::Skill2Up()
+{
+	bSkillKeyDown = false;
+}
 
 void AMain::DecrementHealth(float Amount) {
 	Health -= Amount;
@@ -425,7 +504,7 @@ void AMain::Jump()
 		if (MainPlayerController->bPauseMenuVisible) return;
 	}
 
-	if (MovementStatus != EMovementStatus::EMS_Dead) {
+	if (MovementStatus != EMovementStatus::EMS_Dead && !bSkillKeyDown) {
 		ACharacter::Jump();
 	}
 }
@@ -507,7 +586,7 @@ void AMain::SetEquippedWeapon(AWeapon* WeaponToSet)
 
 void AMain::Attack()
 {
-	if (!bAttacking && MovementStatus != EMovementStatus::EMS_Dead) {
+	if (!bAttacking && MovementStatus != EMovementStatus::EMS_Dead && !bSkillKeyDown) {
 		bAttacking = true;
 		SetInterpToEnemy(true);
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
@@ -517,7 +596,7 @@ void AMain::Attack()
 
 		if (AnimInstance && CombatMontage) {
 
-			int32 Section = FMath::RandRange(1, 3);
+			int32 Section = FMath::RandRange(1, 2);
 			switch (Section)
 			{
 			case 1:
@@ -537,6 +616,7 @@ void AMain::Attack()
 				}
 				break;
 
+			/* 1,2번은 기본 에너지볼트로 하고.. 3번부터는 그냥 키 누르면 나오게 설정하자. 
 			case 3:
 				AnimInstance->Montage_Play(CombatMontage, 2.8f);
 				AnimInstance->Montage_JumpToSection("MeteoSkill", CombatMontage);
@@ -544,7 +624,7 @@ void AMain::Attack()
 					FTransform SkillTransForm = FTransform(GetActorRotation(), GetMesh()->GetSocketLocation("SkillSocket"), GetActorScale3D());
 					GetWorld()->SpawnActor<ASkillBase>(Skill_3, SkillTransForm);
 				}
-				break;
+				break;*/
 			default:
 				;
 			}
@@ -754,11 +834,3 @@ void AMain::LoadGameNoSwitch()
 	GetMesh()->bPauseAnims = false;
 	GetMesh()->bNoSkeletonUpdate = false;
 }
-//
-//void AMain::ActivateSkill()
-//{
-//	FVector NewLocation = GetMesh()->GetSocketLocation(FName("SkillSocket"));
-//	FRotator SkillRotation = GetActorRotation();
-//	FVector SkillScale = GetActorScale3D();
-//	ASkillBase* Skill = GetWorld()->SpawnActor<ASkillBase>(Skill_1, NewLocation, SkillRotation, SkillScale);
-//}

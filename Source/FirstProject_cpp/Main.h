@@ -71,6 +71,16 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Skill")
 	TSubclassOf<class ASkillBase> Skill_3;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Skill")
+	TSubclassOf<class ASkillBase> Skill_3_2;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Skill")
+	TSubclassOf<class ASkillBase> Skill_4;
+
+	// 메테오 연출을 위해 만든거
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill")
+	class UBoxComponent* SkillSpawningBox;
+
 	/**
 	When you overlapped with item, you can choice whether to equip it or not.
 	*/
@@ -167,6 +177,8 @@ public:
 
 	bool bESCDown;
 
+	bool bSkillKeyDown;
+
 //******************************************************************************************
 //										public Protected
 //******************************************************************************************
@@ -241,6 +253,11 @@ public:
 
 	void ESCUp();
 
+	void Skill1Down();
+	void Skill1Up();
+	void Skill2Down();
+	void Skill2Up();
+
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
@@ -289,5 +306,5 @@ public:
 
 	void EquipSocket();
 
-	// void ActivateSkill();
+	FVector GetSpawnPoint();
 };
