@@ -36,7 +36,7 @@ AMain::AMain()
 	// Create Camera Boom (pulls towards the player if there's a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(GetRootComponent());
-	CameraBoom->TargetArmLength = 600.f; // Camera follows at this distance
+	CameraBoom->TargetArmLength = 1600.f; // Camera follows at this distance
 	CameraBoom->bUsePawnControlRotation = true; // Rotate arm based on controller
 
 	// Set size for collision capsule
@@ -50,7 +50,7 @@ AMain::AMain()
 	FollowCamera->bUsePawnControlRotation = false;
 	// Set our turn rates for input
 	BaseTurnRate = 65.f;
-	BaseLookUpRate = 65.f;
+	BaseLookUpRate = 10.f;
 
 	SkillSpawningBox = CreateDefaultSubobject<UBoxComponent>(TEXT("SkillSpawningBox"));
 	SkillSpawningBox->SetupAttachment(GetRootComponent());
@@ -680,6 +680,7 @@ void AMain::UpdateCombatTarget()
 	if (OverlappingActors.Num() == 0) {
 		if (MainPlayerController) {
 			MainPlayerController->RemoveEnemyHealthBar();
+			MainPlayerController->RemoveBossEnemyHealthBar();
 		}
 		return;
 	}
@@ -698,7 +699,14 @@ void AMain::UpdateCombatTarget()
 			}
 		}
 		if (MainPlayerController) {
-			MainPlayerController->DisplayEnemyHealthBar();
+			if(ClosestEnemy->IsBoss == false){
+				MainPlayerController->DisplayEnemyHealthBar();
+			}
+			else {
+				// 보스인 경우
+				MainPlayerController->DisplayBossEnemyHealthBar();
+			}
+			
 		}
 		SetCombatTarget(ClosestEnemy);
 		bHasCombatTarget = true;
