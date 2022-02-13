@@ -77,6 +77,18 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Skill")
 	TSubclassOf<class ASkillBase> Skill_4;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Skill")
+	TSubclassOf<class ASkillBase> Skill_5;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Skill")
+	TSubclassOf<class ASkillBase> Skill_6;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Skill")
+	TSubclassOf<class ASkillBase> Skill_7;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Skill")
+	TSubclassOf<class ASkillBase> Skill_8;
+
 	// 메테오 연출을 위해 만든거
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill")
 	class UBoxComponent* SkillSpawningBox;
@@ -253,10 +265,13 @@ public:
 
 	void ESCUp();
 
+	void SkillKeyUp();
 	void Skill1Down();
-	void Skill1Up();
 	void Skill2Down();
-	void Skill2Up();
+	void Skill3Down();
+	void Skill4Down();
+	void Skill5Down();
+	void Skill6Down();
 
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }

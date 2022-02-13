@@ -71,10 +71,10 @@ AMain::AMain()
 	GetCharacterMovement()->AirControl = 0.2f; // Character can moving in the air 
 
 	// Default Player Stats
-	MaxHealth = 100.f;
-	Health = 65.f;
-	MaxStamina = 150.f;
-	Stamina = 120.f;
+	MaxHealth = 500.f;
+	Health = 250.f;
+	MaxStamina = 500.f;
+	Stamina = 250.f;
 	Coins = 0;
 
 	RunningSpeed = 650.f;
@@ -239,7 +239,12 @@ void AMain::Tick(float DeltaTime)
 	if (CombatTarget) {
 		CombatTargetLocation = CombatTarget->GetActorLocation();
 		if (MainPlayerController) {
-			MainPlayerController->EnemyLocation = CombatTargetLocation;
+			if (CombatTarget->IsBoss == false) {
+				MainPlayerController->EnemyLocation = CombatTargetLocation;
+			}
+			else {
+				MainPlayerController->BossEnemyLocation = CombatTargetLocation;
+			}
 		}
 	}
 }
@@ -275,10 +280,22 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAction("ESC", IE_Released, this, &AMain::ESCUp);
 
 	PlayerInputComponent->BindAction("Skill1", IE_Pressed, this, &AMain::Skill1Down);
-	PlayerInputComponent->BindAction("Skill1", IE_Released, this, &AMain::Skill1Up);
+	PlayerInputComponent->BindAction("Skill1", IE_Released, this, &AMain::SkillKeyUp);
 
 	PlayerInputComponent->BindAction("Skill2", IE_Pressed, this, &AMain::Skill2Down);
-	PlayerInputComponent->BindAction("Skill2", IE_Released, this, &AMain::Skill2Up);
+	PlayerInputComponent->BindAction("Skill2", IE_Released, this, &AMain::SkillKeyUp);
+
+	PlayerInputComponent->BindAction("Skill3", IE_Pressed, this, &AMain::Skill3Down);
+	PlayerInputComponent->BindAction("Skill3", IE_Released, this, &AMain::SkillKeyUp);
+
+	PlayerInputComponent->BindAction("Skill4", IE_Pressed, this, &AMain::Skill4Down);
+	PlayerInputComponent->BindAction("Skill4", IE_Released, this, &AMain::SkillKeyUp);
+
+	PlayerInputComponent->BindAction("Skill5", IE_Pressed, this, &AMain::Skill5Down);
+	PlayerInputComponent->BindAction("Skill5", IE_Released, this, &AMain::SkillKeyUp);
+
+	PlayerInputComponent->BindAction("Skill6", IE_Pressed, this, &AMain::Skill6Down);
+	PlayerInputComponent->BindAction("Skill6", IE_Released, this, &AMain::SkillKeyUp);
 	
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMain::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AMain::MoveRight);
@@ -410,66 +427,6 @@ FVector AMain::GetSpawnPoint() {
 	// RandomPointInBoundingBox : 첫 번째 벡터를 원점으로 사용하고 두 번째 벡터를 상자 범위로 사용하여 지정된 경계 상자 내의 임의 점을 반환합니다.
 	FVector Point = UKismetMathLibrary::RandomPointInBoundingBox(Origin, Extent);
 	return Point;
-}
-
-void AMain::Skill1Down()
-{
-	bSkillKeyDown = true;
-	if (MainPlayerController) {
-		// PausMenu가 켜진 상태에서 Jump안되도록..
-		if (MainPlayerController->bPauseMenuVisible) return;
-	}
-
-	if (!bAttacking && MovementStatus != EMovementStatus::EMS_Dead) {
-		bAttacking = true;
-		SetInterpToEnemy(true);
-		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-		if (AnimInstance && CombatMontage) {
-			AnimInstance->Montage_Play(CombatMontage, 2.2f);
-			AnimInstance->Montage_JumpToSection("MeteoSkill", CombatMontage);
-			if (Skill_3 && Skill_3_2) {
-				// 메테오 스킬은 공중장판과 운석 두개로 구성
-				for (int i = 0; i < 5; i++) {
-					FVector RandLocation = GetSpawnPoint();
-					FTransform SkillTransForm = FTransform(GetActorRotation(), RandLocation, GetActorScale3D());
-					// FTransform SkillTransForm2 = FTransform(GetActorRotation(), RandLocation, GetActorScale3D());
-					GetWorld()->SpawnActor<ASkillBase>(Skill_3, SkillTransForm); // 메테오 장판 움직임x
-					GetWorld()->SpawnActor<ASkillBase>(Skill_3_2, SkillTransForm); // 메테오 움직임o
-					// 카메라 쉐이크 주기
-					GetWorld()->GetFirstPlayerController()->PlayerCameraManager->PlayCameraShake(CameraShake, 1.f);
-				}
-			}
-		}
-	}
-
-}
-void AMain::Skill1Up()
-{
-	bSkillKeyDown = false;
-}
-void AMain::Skill2Down()
-{
-	bSkillKeyDown = true;
-	if (MainPlayerController) {
-		if (MainPlayerController->bPauseMenuVisible) return;
-	}
-	if (!bAttacking && MovementStatus != EMovementStatus::EMS_Dead) {
-		bAttacking = true;
-		SetInterpToEnemy(true);
-		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-		if (AnimInstance) {
-			AnimInstance->Montage_Play(CombatMontage, 2.2f);
-			AnimInstance->Montage_JumpToSection("BuffSkill", CombatMontage);
-		}
-		if (Skill_4) {
-			FTransform SkillTransForm = FTransform(GetActorRotation(), GetMesh()->GetSocketLocation("BuffSkillLocation"), GetActorScale3D());
-			GetWorld()->SpawnActor<ASkillBase>(Skill_4, SkillTransForm);
-		}
-	}
-}
-void AMain::Skill2Up()
-{
-	bSkillKeyDown = false;
 }
 
 void AMain::DecrementHealth(float Amount) {
@@ -841,4 +798,151 @@ void AMain::LoadGameNoSwitch()
 	SetMovementStatus(EMovementStatus::EMS_Normal);
 	GetMesh()->bPauseAnims = false;
 	GetMesh()->bNoSkeletonUpdate = false;
+}
+
+
+// ====================================== Skill Setting ===============================================
+void AMain::SkillKeyUp()
+{
+	bSkillKeyDown = false;
+}
+
+
+void AMain::Skill1Down()
+{
+	bSkillKeyDown = true;
+	if (MainPlayerController) {
+		// PausMenu가 켜진 상태에서 Jump안되도록..
+		if (MainPlayerController->bPauseMenuVisible) return;
+	}
+
+	if (!bAttacking && MovementStatus != EMovementStatus::EMS_Dead) {
+		bAttacking = true;
+		SetInterpToEnemy(true);
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		if (AnimInstance && CombatMontage) {
+			AnimInstance->Montage_Play(CombatMontage, 2.2f);
+			AnimInstance->Montage_JumpToSection("MeteoSkill", CombatMontage);
+			if (Skill_3 && Skill_3_2) {
+				// 메테오 스킬은 공중장판과 운석 두개로 구성
+				for (int i = 0; i < 5; i++) {
+					FVector RandLocation = GetSpawnPoint();
+					FTransform SkillTransForm = FTransform(GetActorRotation(), RandLocation, GetActorScale3D());
+					// FTransform SkillTransForm2 = FTransform(GetActorRotation(), RandLocation, GetActorScale3D());
+					GetWorld()->SpawnActor<ASkillBase>(Skill_3, SkillTransForm); // 메테오 장판 움직임x
+					GetWorld()->SpawnActor<ASkillBase>(Skill_3_2, SkillTransForm); // 메테오 움직임o
+					// 카메라 쉐이크 주기
+					GetWorld()->GetFirstPlayerController()->PlayerCameraManager->PlayCameraShake(CameraShake, 1.f);
+				}
+			}
+		}
+	}
+
+}
+void AMain::Skill2Down()
+{
+	bSkillKeyDown = true;
+	if (MainPlayerController) {
+		if (MainPlayerController->bPauseMenuVisible) return;
+	}
+	if (!bAttacking && MovementStatus != EMovementStatus::EMS_Dead) {
+		bAttacking = true;
+		SetInterpToEnemy(true);
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		if (AnimInstance) {
+			AnimInstance->Montage_Play(CombatMontage, 2.2f);
+			AnimInstance->Montage_JumpToSection("BuffSkill", CombatMontage);
+		}
+		if (Skill_4) {
+			FTransform SkillTransForm = FTransform(GetActorRotation(), GetMesh()->GetSocketLocation("BuffSkillLocation"), GetActorScale3D());
+			GetWorld()->SpawnActor<ASkillBase>(Skill_4, SkillTransForm);
+		}
+	}
+}
+
+
+void AMain::Skill3Down() {
+	bSkillKeyDown = true;
+	if (MainPlayerController) {
+		if (MainPlayerController->bPauseMenuVisible) return;
+	}
+	if (!bAttacking && MovementStatus != EMovementStatus::EMS_Dead) {
+		bAttacking = true;
+		SetInterpToEnemy(true);
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		if (AnimInstance) {
+			AnimInstance->Montage_Play(CombatMontage, 1.8f);
+			AnimInstance->Montage_JumpToSection("BuffSkill", CombatMontage);
+		}
+		if (Skill_5) {
+			FTransform SkillTransForm = FTransform(GetActorRotation(), GetMesh()->GetSocketLocation("SkillSocket"), GetActorScale3D());
+			GetWorld()->SpawnActor<ASkillBase>(Skill_5, SkillTransForm);
+		}
+	}
+}
+void AMain::Skill4Down() {
+	bSkillKeyDown = true;
+	if (MainPlayerController) {
+		if (MainPlayerController->bPauseMenuVisible) return;
+	}
+	if (!bAttacking && MovementStatus != EMovementStatus::EMS_Dead) {
+		bAttacking = true;
+		SetInterpToEnemy(true);
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		if (AnimInstance) {
+			AnimInstance->Montage_Play(CombatMontage, 2.2f);
+			AnimInstance->Montage_JumpToSection("BuffSkill", CombatMontage);
+		}
+		if (Skill_6) {
+			if (CombatTarget) {
+				FTransform SkillTransForm = FTransform(GetActorRotation(), CombatTarget->GetMesh()->GetSocketLocation("MainSkillSpawnLocation"), GetActorScale3D());
+				GetWorld()->SpawnActor<ASkillBase>(Skill_6, SkillTransForm);
+			}
+			else return;
+		}
+	}
+}
+void AMain::Skill5Down() {
+	bSkillKeyDown = true;
+	if (MainPlayerController) {
+		if (MainPlayerController->bPauseMenuVisible) return;
+	}
+	if (!bAttacking && MovementStatus != EMovementStatus::EMS_Dead) {
+		bAttacking = true;
+		SetInterpToEnemy(true);
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		if (AnimInstance) {
+			AnimInstance->Montage_Play(CombatMontage, 2.2f);
+			AnimInstance->Montage_JumpToSection("BuffSkill", CombatMontage);
+		}
+		if (Skill_7) {
+			if (CombatTarget) {
+				FTransform SkillTransForm = FTransform(GetActorRotation(), CombatTarget->GetMesh()->GetSocketLocation("MainSkillSpawnLocation"), GetActorScale3D());
+				GetWorld()->SpawnActor<ASkillBase>(Skill_7, SkillTransForm);
+			}
+			else return;
+		}
+	}
+}
+void AMain::Skill6Down() {
+	bSkillKeyDown = true;
+	if (MainPlayerController) {
+		if (MainPlayerController->bPauseMenuVisible) return;
+	}
+	if (!bAttacking && MovementStatus != EMovementStatus::EMS_Dead) {
+		bAttacking = true;
+		SetInterpToEnemy(true);
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		if (AnimInstance) {
+			AnimInstance->Montage_Play(CombatMontage, 2.2f);
+			AnimInstance->Montage_JumpToSection("BuffSkill", CombatMontage);
+		}
+		if (Skill_8) {
+			if (CombatTarget) {
+				FTransform SkillTransForm = FTransform(GetActorRotation(), CombatTarget->GetMesh()->GetSocketLocation("MainSkillSpawnLocation"), GetActorScale3D());
+				GetWorld()->SpawnActor<ASkillBase>(Skill_8, SkillTransForm);
+			}
+			else return;
+		}
+	}
 }
