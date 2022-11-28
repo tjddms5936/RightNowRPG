@@ -14,4 +14,12 @@ class FIRSTPROJECT_CPP_API AFirstProject_cppGameModeBase : public AGameModeBase
 {
 	GENERATED_BODY()
 	
+
+public:
+
+	class UDataTable* GetItemDB() const { return ItemDB; }
+
+protected:
+	UPROPERTY(EditDefaultsOnly)
+	UDataTable* ItemDB;
 };
